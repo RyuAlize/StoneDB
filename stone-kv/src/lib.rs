@@ -1,4 +1,8 @@
 mod skiplist;
+mod arena;
+
+const MAX_HEIGHT: usize = 20;
+const BLOCK_SIZE: usize = 4096;
 
 pub trait Store: Display + Send + Sync {
     /// Deletes a key, or does nothing if it does not exist.
