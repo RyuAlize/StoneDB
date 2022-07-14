@@ -1,8 +1,7 @@
-use std::cell::RefCell;
 use std::mem;
 use std::ptr;
 use std::sync::atomic::{AtomicPtr, AtomicUsize, Ordering};
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
 use super::BLOCK_SIZE;
 
@@ -17,7 +16,7 @@ pub trait Arena: Send + Sync {
 pub struct BlockArena {
     ptr: AtomicPtr<u8>,
     bytes_remaining: AtomicUsize,
-    blocks: RefCell<Vec<Vec<u8>>>,
+    blocks: Arc<Mutex<Vec<Vec<u8>>>>,
     memory_usage: AtomicUsize,
 }
 
@@ -41,7 +40,8 @@ impl BlockArena {
     fn allocate_new_block(&self, block_bytes: usize) -> *mut u8 {
         let mut new_block = vec![0; block_bytes];
         let p = new_block.as_mut_ptr();
-        self.blocks.borrow_mut().push(new_block);
+        let mut guard = self.blocks.lock().unwrap();
+        guard.push(new_block);
         self.memory_usage.fetch_add(block_bytes, Ordering::Relaxed);
         p
     }
@@ -84,5 +84,37 @@ impl Arena for BlockArena {
     #[inline]
     fn memory_used(&self) -> usize {
         self.memory_usage.load(Ordering::Acquire)
+    }
+}
+
+
+#[cfg(test)]
+mod test{
+    use super::*;
+    
+    #[test]
+    fn test_new_arena() {
+        let a = BlockArena::default();
+        assert_eq!(a.memory_used(), 0);
+        assert_eq!(a.bytes_remaining.load(Ordering::Acquire), 0);
+        assert_eq!(a.ptr.load(Ordering::Acquire), ptr::null_mut());
+        
+    }
+
+    #[test]
+    fn test_allocate_new_block() {
+        let a = BlockArena::default();
+        let mut expect_size = 0;
+        for (i, size) in [1, 128, 256, 1000, 4096, 10000].iter().enumerate() {
+            a.allocate_new_block(*size);
+            expect_size += *size;
+            assert_eq!(a.memory_used(), expect_size, "memory used should match");
+            
+            assert_eq!(
+                a.blocks.lock().unwrap().len(),
+                i + 1,
+                "number of blocks should match"
+            )
+        }
     }
 }
