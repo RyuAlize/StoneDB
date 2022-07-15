@@ -1,10 +1,12 @@
 mod skiplist;
 mod arena;
+mod comparator;
 
 use std::fmt::Display;
 
 use anyhow::Result;
 
+const BRANCHING: u32 = 4;
 const MAX_HEIGHT: usize = 20;
 const BLOCK_SIZE: usize = 4096;
 
