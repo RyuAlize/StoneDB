@@ -10,7 +10,7 @@ use super::comparator::*;
 
 #[derive(Debug)]
 #[repr(C)]
-struct Node {
+pub struct Node {
     key: Bytes,
     value: Bytes,
     height: usize,
@@ -32,6 +32,11 @@ impl Node {
             p as *const Self
         }
     }
+
+    #[inline]
+    pub fn get_value(&self) -> &Bytes {
+        &self.value
+    } 
 
     #[inline]
     fn get_next(&self, height: usize) -> *mut Node {
@@ -58,7 +63,7 @@ impl Node {
 }
 
 pub struct Skiplist<C: Comparator, A: Arena> {
-    head: *const Node,
+    head: AtomicPtr<Node>,
     max_height: AtomicUsize,
     arena: A,
     comparator: C,
@@ -71,7 +76,7 @@ impl<C: Comparator, A: Arena> Skiplist<C, A> {
     pub fn new(cmp: C, arena: A) -> Self {
         let head = Node::new(&arena, Bytes::new(), Bytes::new(), MAX_HEIGHT);
         Skiplist {
-            head,
+            head: AtomicPtr::new(head as *mut Node),
             max_height: AtomicUsize::new(1),
             arena,
             comparator: cmp,
@@ -89,6 +94,21 @@ impl<C: Comparator, A: Arena> Skiplist<C, A> {
     #[inline]
     pub fn total_size(&self) -> usize {
         self.size.load(Ordering::Acquire)
+    }
+
+    pub fn get(&self, key: impl Into<Bytes>) -> *mut Node {
+        self.lock.read();
+        let key = key.into();
+        let mut prev = [ptr::null(); MAX_HEIGHT];
+        let node = self.find_greater_or_equal(&key, Some(&mut prev));
+        if !node.is_null() {
+            unsafe{
+                if self.comparator.compare((&(*node)).key(), &key) == cmp::Ordering::Equal {
+                    return node;
+                }
+            }
+        }
+        ptr::null_mut()
     }
 
     pub fn insert(&self, key: impl Into<Bytes>, value: impl Into<Bytes>) {
@@ -112,7 +132,7 @@ impl<C: Comparator, A: Arena> Skiplist<C, A> {
         let max_height = self.max_height.load(Ordering::Acquire);
         if height > max_height {
             for p in prev.iter_mut().take(height).skip(max_height) {
-                *p = self.head;
+                *p = self.head.load(Ordering::Relaxed);
             }
             self.max_height.store(height, Ordering::Release);
         }
@@ -128,7 +148,7 @@ impl<C: Comparator, A: Arena> Skiplist<C, A> {
         self.size.fetch_add(length, Ordering::SeqCst);
     }
 
-    fn delete(&self, key: impl Into<Bytes>) -> *mut Node{
+    pub fn delete(&self, key: impl Into<Bytes>) -> *mut Node{
         self.lock.write();
         let key = key.into();
         let length = key.len();
@@ -147,8 +167,9 @@ impl<C: Comparator, A: Arena> Skiplist<C, A> {
                 (*(prev[i - 1])).set_next(i, (*node).get_next(i));
             }
             let max_height =self.max_height.load(Ordering::Relaxed); 
+            let head = self.head.load(Ordering::Relaxed);
             for i in (1..=max_height).rev() {
-                if (*self.head).get_next(i).is_null() {
+                if (*head).get_next(i).is_null() {
                     self.max_height.fetch_sub(1, Ordering::Relaxed);
                 }
                 else{
@@ -166,7 +187,7 @@ impl<C: Comparator, A: Arena> Skiplist<C, A> {
         mut prev_nodes: Option<&mut [*const Node]>,
     ) -> *mut Node {
         let mut level = self.max_height.load(Ordering::Acquire);
-        let mut node = self.head;
+        let mut node = self.head.load(Ordering::Relaxed);
         loop {
             unsafe {
                 let next = (*node).get_next(level);
@@ -188,7 +209,7 @@ impl<C: Comparator, A: Arena> Skiplist<C, A> {
     fn find_less_than(&self, key: &[u8]) -> *const Node {
         self.lock.read();
         let mut level = self.max_height.load(Ordering::Acquire);
-        let mut node = self.head;
+        let mut node = self.head.load(Ordering::Relaxed);
         loop {
             unsafe {
                 let next = (*node).get_next(level);
@@ -210,7 +231,7 @@ impl<C: Comparator, A: Arena> Skiplist<C, A> {
     fn find_last(&self) -> *const Node {
         self.lock.read();
         let mut level = self.max_height.load(Ordering::Acquire);
-        let mut node = self.head;
+        let mut node = self.head.load(Ordering::Relaxed);
         loop {
             unsafe {
                 let next = (*node).get_next(level);
