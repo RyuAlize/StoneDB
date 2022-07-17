@@ -278,9 +278,18 @@ impl<C: Comparator, A: Arena> Skiplist<C, A> {
         }
     }
 
-    pub fn key_is_less_than(&self, key: &[u8], n: *const Node) -> bool {
+    pub fn key_is_greater_than_or_equal(&self, key: &[u8], n: *const Node) -> bool {
         if n.is_null() {
             false
+        } else {
+            let node_key = unsafe { (*n).get_key().as_ref() };
+            !matches!(self.comparator.compare(key, node_key), cmp::Ordering::Less)
+        }
+    }
+
+    pub fn key_is_less_than(&self, key: &[u8], n: *const Node) -> bool {
+        if n.is_null() {
+            true
         }
         else{
             let node_key = unsafe { (*n).get_key().as_ref() };
@@ -314,6 +323,7 @@ fn rand_height() -> usize {
 
 #[cfg(test)]
 mod test{
+
     use super::*;
     #[test]
     fn test_skiplist() {
@@ -322,7 +332,7 @@ mod test{
             skiplist.insert(vec![i], vec![i]);
         }
         for i in 0..100 {
-            let node = skiplist.delete(vec![i]);
+            let node = skiplist.delete(vec![i].as_slice());
             if !node.is_null() {
                 unsafe{assert!((*node).value.as_ref().eq(&vec![i]));}
             }

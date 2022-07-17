@@ -128,21 +128,21 @@ impl<C: Comparator, A: Arena> Iter<C, A> {
                             
                             match &self.range.end {
                                 Bound::Included(k) =>{
-                                    if !self.skl.key_is_less_than_or_equal(k.as_slice(), next){
-                                        Ok(None)
+                                    if self.skl.key_is_greater_than_or_equal(k.as_slice(), next){
+                                        self.front_cursor.store(next, Ordering::SeqCst);
+                                        Ok(Some((*next).get_key_value()))                                      
                                     }
                                     else{
-                                        self.front_cursor.store(next, Ordering::SeqCst);
-                                        Ok(Some((*next).get_key_value()))
+                                        Ok(None)
                                     }
                                 },
                                 Bound::Excluded(k) =>{
-                                    if !self.skl.key_is_less_than(k.as_slice(), next) {
-                                        Ok(None)
+                                    if self.skl.key_is_greater_than(k.as_slice(), next) {
+                                        self.front_cursor.store(next, Ordering::SeqCst);
+                                        Ok(Some((*next).get_key_value()))                                  
                                     }
                                     else{
-                                        self.front_cursor.store(next, Ordering::SeqCst);
-                                        Ok(Some((*next).get_key_value()))
+                                        Ok(None)
                                     }
                                 },
                                 Bound::Unbounded => {
@@ -158,4 +158,38 @@ impl<C: Comparator, A: Arena> Iter<C, A> {
         next
     }
 
+}
+
+impl<C: Comparator, A: Arena> Iterator for Iter<C, A>{
+    type Item = Result<(Vec<u8>, Vec<u8>)>;
+    fn next(&mut self) -> Option<Self::Item> {
+        self.try_next().transpose()
+    }
+}
+
+#[cfg(test)]
+mod test{
+    use super::*;
+    #[test]
+    fn test_iter() {
+        let skiplist = Skiplist::new(BytewiseComparator::default(), BlockArena::default());
+        for i in 0..125 {       
+            skiplist.insert(vec![i], vec![i]);
+        }
+        let range = Range{
+            start: Bound::Included(vec![1]),
+            end: Bound::Unbounded
+        };
+        let skl = Arc::new(skiplist);
+        let mut iterator = Iter::new(skl, range);
+        let mut i =1;
+        while let Some(item) = iterator.next() {
+            let item = item.unwrap();
+            let key = item.0;
+            let value = item.1;
+            println!("{}", key[0]);
+            assert!(key[0] == i);
+            i+=1;
+        }
+    }
 }
