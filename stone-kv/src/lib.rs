@@ -16,6 +16,9 @@ pub trait Store: Send + Sync {
     /// Gets a value for a key, if it exists.
     fn get(&self, key: &[u8]) -> Result<Option<Vec<u8>>>;
 
+    /// Iterates over an ordered range of key/value pairs.
+    fn scan(&self, range: Range) -> Scan;
+
     /// Sets a value for a key, replacing the existing value if any.
     fn set(&mut self, key: Vec<u8>, value: Vec<u8>) -> Result<()>;
 
@@ -79,7 +82,7 @@ impl RangeBounds<Vec<u8>> for Range {
     }
 }
 
-pub type Scan = Box<dyn DoubleEndedIterator<Item = Result<(Vec<u8>, Vec<u8>)>> + Send>;
+pub type Scan = Box<dyn Iterator<Item = Result<(Vec<u8>, Vec<u8>)>> + Send>;
 
 #[cfg(test)]
 mod tests {

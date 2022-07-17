@@ -26,7 +26,6 @@ impl Memory{
 }
 
 impl Store for Memory {
-    
     fn get(&self, key: &[u8]) -> Result<Option<Vec<u8>>> {
         self.inner.read_grard();
         let node = self.inner.get(key);      
@@ -40,6 +39,10 @@ impl Store for Memory {
         else {
             Ok(None)
         }
+     }
+
+     fn scan(&self, range: Range) -> crate::Scan {
+         Box::new(Iter::new(self.inner.clone(), range))
      }
 
      fn set(&mut self, key: Vec<u8>, value: Vec<u8>) -> Result<()> {
@@ -178,7 +181,7 @@ mod test{
         }
         let range = Range{
             start: Bound::Included(vec![1]),
-            end: Bound::Unbounded
+            end: Bound::Excluded(vec![126])
         };
         let skl = Arc::new(skiplist);
         let mut iterator = Iter::new(skl, range);
