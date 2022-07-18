@@ -34,9 +34,9 @@ impl Node {
     }
 
     #[inline]
-    pub fn get_key_value(&self) -> (Vec<u8>, Vec<u8>) {
-        let key = self.get_key().to_vec();
-        let value = self.get_value().to_vec();
+    pub fn get_key_value(&self) -> (Bytes, Bytes) {
+        let key = self.get_key().to_owned();
+        let value = self.get_value().to_owned();
         (key, value)
     }
 
@@ -119,12 +119,12 @@ impl<C: Comparator, A: Arena> Skiplist<C, A> {
         self.lock.write().unwrap()
     }
 
-    pub fn get(&self, key: &[u8]) -> *mut Node {
+    pub fn get(&self, key: &Bytes) -> *mut Node {
         let mut prev = [ptr::null(); MAX_HEIGHT];
         let node = self.find_greater_or_equal(key, Some(&mut prev));
         if !node.is_null() {
             unsafe{
-                if self.comparator.compare((&(*node)).get_key().as_ref(), key) == cmp::Ordering::Equal {
+                if self.comparator.compare((&(*node)).get_key(), key) == cmp::Ordering::Equal {
                     return node;
                 }
             }
@@ -141,7 +141,7 @@ impl<C: Comparator, A: Arena> Skiplist<C, A> {
         if !node.is_null() {
             unsafe {
                 assert_ne!(
-                    self.comparator.compare((&(*node)).get_key().as_ref(), &key),
+                    self.comparator.compare((&(*node)).get_key(), &key),
                     cmp::Ordering::Equal,
                     "[skiplist] duplicate insertion [key={:?}] is not allowed",
                     &key
@@ -168,14 +168,13 @@ impl<C: Comparator, A: Arena> Skiplist<C, A> {
         self.size.fetch_add(length, Ordering::SeqCst);
     }
 
-    pub fn delete(&self, key: &[u8]) -> *mut Node{
-        let length = key.len();
+    pub fn delete(&self, key: &Bytes) -> *mut Node{
         let mut prev = [ptr::null(); MAX_HEIGHT];
         let node = self.find_greater_or_equal(&key, Some(&mut prev));
         if node.is_null() {return ptr::null_mut();}
         unsafe {
             assert_eq!(
-                self.comparator.compare((&(*node)).get_key().as_ref(), &key),
+                self.comparator.compare((&(*node)).get_key(), &key),
                 cmp::Ordering::Equal,
                 "[skiplist] delete [key={:?}] is not found",
                 &key
@@ -201,7 +200,7 @@ impl<C: Comparator, A: Arena> Skiplist<C, A> {
 
     fn find_greater_or_equal(
         &self,
-        key: &[u8],
+        key: &Bytes,
         mut prev_nodes: Option<&mut [*const Node]>,
     ) -> *mut Node {
         let mut level = self.max_height.load(Ordering::Acquire);
@@ -224,7 +223,7 @@ impl<C: Comparator, A: Arena> Skiplist<C, A> {
         }
     }
 
-    fn find_less_than(&self, key: &[u8]) -> *const Node {
+    fn find_less_than(&self, key: &Bytes) -> *const Node {
         self.lock.read();
         let mut level = self.max_height.load(Ordering::Acquire);
         let mut node = self.head.load(Ordering::Relaxed);
@@ -232,7 +231,7 @@ impl<C: Comparator, A: Arena> Skiplist<C, A> {
             unsafe {
                 let next = (*node).get_next(level);
                 if next.is_null()
-                    || self.comparator.compare((*next).get_key().as_ref(), key) != cmp::Ordering::Less
+                    || self.comparator.compare((*next).get_key(), key) != cmp::Ordering::Less
                 {
                     if level == 1 {
                         return node;
@@ -269,40 +268,40 @@ impl<C: Comparator, A: Arena> Skiplist<C, A> {
         }
     }
 
-    pub fn key_is_less_than_or_equal(&self, key: &[u8], n: *const Node) -> bool {
+    pub fn key_is_less_than_or_equal(&self, key: &Bytes, n: *const Node) -> bool {
         if n.is_null() {
             true
         } else {
-            let node_key = unsafe { (*n).get_key().as_ref() };
+            let node_key = unsafe { (*n).get_key() };
             !matches!(self.comparator.compare(key, node_key), cmp::Ordering::Greater)
         }
     }
 
-    pub fn key_is_greater_than_or_equal(&self, key: &[u8], n: *const Node) -> bool {
+    pub fn key_is_greater_than_or_equal(&self, key: &Bytes, n: *const Node) -> bool {
         if n.is_null() {
             false
         } else {
-            let node_key = unsafe { (*n).get_key().as_ref() };
+            let node_key = unsafe { (*n).get_key() };
             !matches!(self.comparator.compare(key, node_key), cmp::Ordering::Less)
         }
     }
 
-    pub fn key_is_less_than(&self, key: &[u8], n: *const Node) -> bool {
+    pub fn key_is_less_than(&self, key: &Bytes, n: *const Node) -> bool {
         if n.is_null() {
             true
         }
         else{
-            let node_key = unsafe { (*n).get_key().as_ref() };
+            let node_key = unsafe { (*n).get_key() };
             matches!(self.comparator.compare(key, node_key), cmp::Ordering::Less)
         }
     } 
 
-    pub fn key_is_greater_than(&self, key: &[u8], n: *const Node) -> bool {
+    pub fn key_is_greater_than(&self, key: &Bytes, n: *const Node) -> bool {
         if n.is_null() {
             false
         }
         else{
-            let node_key = unsafe { (*n).get_key().as_ref() };
+            let node_key = unsafe { (*n).get_key()};
             matches!(self.comparator.compare(key, node_key), cmp::Ordering::Greater)
         }
     } 
@@ -331,10 +330,10 @@ mod test{
         for i in 0..100 {       
             skiplist.insert(vec![i], vec![i]);
         }
-        for i in 0..100 {
-            let node = skiplist.delete(vec![i].as_slice());
+        for i in 50..100 {
+            let node = skiplist.delete(&Bytes::from(vec![i]));
             if !node.is_null() {
-                unsafe{assert!((*node).value.as_ref().eq(&vec![i]));}
+                unsafe{assert!((*node).value.eq(&Bytes::from(vec![i])));}
             }
         }
     }

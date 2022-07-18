@@ -2,7 +2,7 @@ use std::ptr;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicPtr, Ordering};
 use anyhow::{Result, Ok};
-
+use bytes::Bytes;
 use crate::skiplist::Node;
 
 use super::{Store, Range, RangeBounds, Bound};
@@ -26,7 +26,7 @@ impl Memory{
 }
 
 impl Store for Memory {
-    fn get(&self, key: &[u8]) -> Result<Option<Vec<u8>>> {
+    fn get(&self, key: &Bytes) -> Result<Option<Vec<u8>>> {
         self.inner.read_grard();
         let node = self.inner.get(key);      
         return if !node.is_null(){
@@ -45,13 +45,13 @@ impl Store for Memory {
          Box::new(Iter::new(self.inner.clone(), range))
      }
 
-     fn set(&mut self, key: Vec<u8>, value: Vec<u8>) -> Result<()> {
+     fn set(&mut self, key: Bytes, value: Bytes) -> Result<()> {
         self.inner.write_guard();
         self.inner.insert(key, value);
         Ok(())
      }
 
-     fn delete(&mut self, key: &[u8]) -> Result<()>{
+     fn delete(&mut self, key: &Bytes) -> Result<()>{
         self.inner.write_guard();
         self.inner.delete(key);
         Ok(())
@@ -74,7 +74,7 @@ impl<C: Comparator, A: Arena> Iter<C, A> {
         Self { skl, range, front_cursor: AtomicPtr::default() }
     }
 
-    fn try_next(&self) -> Result<Option<(Vec<u8>, Vec<u8>)>> {
+    fn try_next(&self) -> Result<Option<(Bytes, Bytes)>> {
         self.skl.read_grard();
         let cursor = self.front_cursor.load(Ordering::Relaxed);
         let next = match cursor.is_null(){
@@ -92,7 +92,7 @@ impl<C: Comparator, A: Arena> Iter<C, A> {
                    }
                 },
                 Bound::Excluded(k) => {
-                    let node =  self.skl.get(k.as_slice());      
+                    let node =  self.skl.get(k);      
                     match node.is_null() {
                         true => {Ok(None)},
                         false => {
@@ -131,7 +131,7 @@ impl<C: Comparator, A: Arena> Iter<C, A> {
                             
                             match &self.range.end {
                                 Bound::Included(k) =>{
-                                    if self.skl.key_is_greater_than_or_equal(k.as_slice(), next){
+                                    if self.skl.key_is_greater_than_or_equal(k, next){
                                         self.front_cursor.store(next, Ordering::SeqCst);
                                         Ok(Some((*next).get_key_value()))                                      
                                     }
@@ -140,7 +140,7 @@ impl<C: Comparator, A: Arena> Iter<C, A> {
                                     }
                                 },
                                 Bound::Excluded(k) =>{
-                                    if self.skl.key_is_greater_than(k.as_slice(), next) {
+                                    if self.skl.key_is_greater_than(k, next) {
                                         self.front_cursor.store(next, Ordering::SeqCst);
                                         Ok(Some((*next).get_key_value()))                                  
                                     }
@@ -164,7 +164,7 @@ impl<C: Comparator, A: Arena> Iter<C, A> {
 }
 
 impl<C: Comparator, A: Arena> Iterator for Iter<C, A>{
-    type Item = Result<(Vec<u8>, Vec<u8>)>;
+    type Item = Result<(Bytes, Bytes)>;
     fn next(&mut self) -> Option<Self::Item> {
         self.try_next().transpose()
     }
@@ -180,8 +180,8 @@ mod test{
             skiplist.insert(vec![i], vec![i]);
         }
         let range = Range{
-            start: Bound::Included(vec![1]),
-            end: Bound::Excluded(vec![126])
+            start: Bound::Included(vec![1].into()),
+            end: Bound::Excluded(vec![126].into())
         };
         let skl = Arc::new(skiplist);
         let mut iterator = Iter::new(skl, range);

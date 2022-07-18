@@ -4,7 +4,7 @@ mod comparator;
 mod memory;
 
 use std::{fmt::Display, ops::{Bound, RangeBounds}};
-
+use bytes::Bytes;
 use anyhow::Result;
 
 const BRANCHING: u32 = 4;
@@ -14,16 +14,16 @@ const BLOCK_SIZE: usize = 4096;
 pub trait Store: Send + Sync {
 
     /// Gets a value for a key, if it exists.
-    fn get(&self, key: &[u8]) -> Result<Option<Vec<u8>>>;
+    fn get(&self, key: &Bytes) -> Result<Option<Vec<u8>>>;
 
     /// Iterates over an ordered range of key/value pairs.
     fn scan(&self, range: Range) -> Scan;
 
     /// Sets a value for a key, replacing the existing value if any.
-    fn set(&mut self, key: Vec<u8>, value: Vec<u8>) -> Result<()>;
+    fn set(&mut self, key: Bytes, value: Bytes) -> Result<()>;
 
     /// Deletes a key, or does nothing if it does not exist.
-    fn delete(&mut self, key: &[u8]) -> Result<()>;
+    fn delete(&mut self, key: &Bytes) -> Result<()>;
 
     /// Flushes any buffered data to the underlying storage medium.
     fn flush(&mut self) -> Result<()>;
@@ -31,27 +31,27 @@ pub trait Store: Send + Sync {
 
 
 pub struct Range {
-    start: Bound<Vec<u8>>,
-    end: Bound<Vec<u8>>
+    start: Bound<Bytes>,
+    end: Bound<Bytes>
 }
 
 impl Range {
-    pub fn from<R:RangeBounds<Vec<u8>>>(range: R) -> Self{
+    pub fn from<R:RangeBounds<Bytes>>(range: R) -> Self{
         Self{
             start: match range.start_bound() {
-                Bound::Included(v) => Bound::Included(v.to_vec()),
-                Bound::Excluded(v) => Bound::Excluded(v.to_vec()),
+                Bound::Included(v) => Bound::Included(v.to_owned()),
+                Bound::Excluded(v) => Bound::Excluded(v.to_owned()),
                 Bound::Unbounded => Bound::Unbounded
             },
             end: match range.end_bound() {
-                Bound::Included(v) => Bound::Included(v.to_vec()),
-                Bound::Excluded(v) => Bound::Excluded(v.to_vec()),
+                Bound::Included(v) => Bound::Included(v.to_owned()),
+                Bound::Excluded(v) => Bound::Excluded(v.to_owned()),
                 Bound::Unbounded => Bound::Unbounded
             }
         }
     }
 
-    fn contains(&self, v: &[u8]) -> bool {
+    fn contains(&self, v: &Bytes) -> bool {
         (match &self.start {
             Bound::Included(start) => &**start <= v,
             Bound::Excluded(start) => &**start < v,
@@ -64,8 +64,8 @@ impl Range {
     }
 }
 
-impl RangeBounds<Vec<u8>> for Range {
-    fn start_bound(&self) -> Bound<&Vec<u8>> {
+impl RangeBounds<Bytes> for Range {
+    fn start_bound(&self) -> Bound<&Bytes> {
         match &self.start {
             Bound::Included(v) => Bound::Included(v),
             Bound::Excluded(v) => Bound::Excluded(v),
@@ -73,7 +73,7 @@ impl RangeBounds<Vec<u8>> for Range {
         }
     }
 
-    fn end_bound(&self) -> Bound<&Vec<u8>> {
+    fn end_bound(&self) -> Bound<&Bytes> {
         match &self.end {
             Bound::Included(v) => Bound::Included(v),
             Bound::Excluded(v) => Bound::Excluded(v),
@@ -82,7 +82,7 @@ impl RangeBounds<Vec<u8>> for Range {
     }
 }
 
-pub type Scan = Box<dyn Iterator<Item = Result<(Vec<u8>, Vec<u8>)>> + Send>;
+pub type Scan = Box<dyn Iterator<Item = Result<(Bytes, Bytes)>> + Send>;
 
 #[cfg(test)]
 mod tests {
