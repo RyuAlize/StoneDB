@@ -1,7 +1,10 @@
+extern crate core;
+
 mod skiplist;
 mod arena;
 mod comparator;
 mod memory;
+mod mvcc;
 
 use std::{fmt::Display, ops::{Bound, RangeBounds}};
 use bytes::Bytes;
@@ -14,7 +17,7 @@ const BLOCK_SIZE: usize = 4096;
 pub trait Store: Send + Sync {
 
     /// Gets a value for a key, if it exists.
-    fn get(&self, key: &Bytes) -> Result<Option<Vec<u8>>>;
+    fn get(&self, key: &Bytes) -> Result<Option<Bytes>>;
 
     /// Iterates over an ordered range of key/value pairs.
     fn scan(&self, range: Range) -> Scan;

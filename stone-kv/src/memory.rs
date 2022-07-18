@@ -26,14 +26,12 @@ impl Memory{
 }
 
 impl Store for Memory {
-    fn get(&self, key: &Bytes) -> Result<Option<Vec<u8>>> {
+    fn get(&self, key: &Bytes) -> Result<Option<Bytes>> {
         self.inner.read_grard();
         let node = self.inner.get(key);      
         return if !node.is_null(){
             unsafe{
-                let bytes = (*node).get_value();
-   
-                Ok(Some(bytes.to_vec()))
+                Ok(Some((*node).get_value().to_owned()))
             }
         }
         else {
