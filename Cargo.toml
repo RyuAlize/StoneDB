@@ -8,7 +8,8 @@ edition = "2021"
 [workspace]
 members =[
     "stone-kv",
-    "stone-sql"
+    "stone-sql",
+    "stone-rpc"
 ]
 
 [dependencies]

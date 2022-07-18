@@ -39,6 +39,10 @@ impl Node {
         let value = self.get_value().to_owned();
         (key, value)
     }
+    #[inline]
+    pub fn set_value(&mut self, value: Bytes) {
+        self.value = value;
+    }
 
     #[inline]
     pub fn get_key(&self) -> &Bytes {
@@ -140,12 +144,10 @@ impl<C: Comparator, A: Arena> Skiplist<C, A> {
         let node = self.find_greater_or_equal(&key, Some(&mut prev));
         if !node.is_null() {
             unsafe {
-                assert_ne!(
-                    self.comparator.compare((&(*node)).get_key(), &key),
-                    cmp::Ordering::Equal,
-                    "[skiplist] duplicate insertion [key={:?}] is not allowed",
-                    &key
-                );
+                if self.comparator.compare((*node).get_key(), &key) == cmp::Ordering::Equal {
+                    (*node).set_value(val);
+                    return;
+                }
             }
         }
         let height = rand_height();
