@@ -3,6 +3,7 @@ mod arena;
 mod comparator;
 mod memory;
 mod mvcc;
+mod log;
 
 use std::{fmt::Display, ops::{Bound, RangeBounds}};
 use bytes::Bytes;

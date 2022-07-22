@@ -63,8 +63,7 @@ impl Store for Memory {
 struct Iter<C: Comparator, A: Arena> {
     skl: Arc<Skiplist<C, A>>,
     range: Range,
-    front_cursor: AtomicPtr<Node>,
-    
+    front_cursor: AtomicPtr<Node>
 }
 
 impl<C: Comparator, A: Arena> Iter<C, A> {
@@ -170,27 +169,38 @@ impl<C: Comparator, A: Arena> Iterator for Iter<C, A>{
 
 #[cfg(test)]
 mod test{
-    use super::*;
+    use bytes::Buf;
+
+    use super::*;   
     #[test]
-    fn test_iter() {
-        let skiplist = Skiplist::new(BytewiseComparator::default(), BlockArena::default());
-        for i in 0..125 {       
-            skiplist.insert(vec![i], vec![i]);
+    fn test_crud() {
+        let mut db = Memory::new();
+        db.set(Bytes::from("aaa"), Bytes::from("aaa"));
+        db.set(Bytes::from("bbb"), Bytes::from("bbb"));
+        db.set(Bytes::from("ccc"), Bytes::from("ccc"));
+        db.set(Bytes::from("aaa"), Bytes::from("aac"));
+        assert_eq!(db.get(&Bytes::from("aaa")).unwrap(), Some(Bytes::from("aac")));
+        assert_eq!(db.get(&Bytes::from("bbb")).unwrap(), Some(Bytes::from("bbb")));
+        assert_eq!(db.get(&Bytes::from("ccc")).unwrap(), Some(Bytes::from("ccc")));
+       
+        for i in 1..1000 as i32 {
+            db.set(Bytes::from(i.to_be_bytes().to_vec()), Bytes::from(i.to_be_bytes().to_vec()));
         }
+
         let range = Range{
-            start: Bound::Included(vec![1].into()),
-            end: Bound::Excluded(vec![126].into())
+            start:Bound::Included(Bytes::from(30i32.to_be_bytes().to_vec())),
+            end: Bound::Excluded(Bytes::from(900i32.to_be_bytes().to_vec()))
         };
-        let skl = Arc::new(skiplist);
-        let mut iterator = Iter::new(skl, range);
-        let mut i =1;
-        while let Some(item) = iterator.next() {
+        let mut scan = db.scan(range);
+        let mut i = 30;
+        while let Some(item) = scan.next() {
             let item = item.unwrap();
-            let key = item.0;
-            let value = item.1;
-            println!("{}", key[0]);
-            assert!(key[0] == i);
-            i+=1;
+            let mut key = item.0;
+            let mut value = item.1;
+            assert_eq!(key.get_i32(), i);
+            assert_eq!(value.get_i32(), i);
+            i += 1;
         }
     }
+
 }
