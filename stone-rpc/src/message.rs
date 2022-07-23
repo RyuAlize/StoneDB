@@ -1,6 +1,6 @@
 use std::io::{self, Read};
 use rmpv::{decode::{self, value}, encode, Integer, Utf8String, Value};
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 
 #[derive(PartialEq, Clone, Debug)]
 pub enum Message {
@@ -19,8 +19,24 @@ const RESPONSE_MESSAGE_FAILURE:u64 = 6;
 impl Message {
     pub fn decode<R: Read>(rd: &mut R) -> Result<Message> {
         let msg = decode::value::read_value(rd)?;
-        
-        
+        if let Value::Array(ref array) = msg {
+            if array.len() != 3 {
+                return Err(anyhow!("Decode error."));
+            }
+            if let Value::Integer(msg_type) = array[0] {
+                match msg_type.as_u64() {
+                    Some(REQUEST_MESSAGE) => {Ok(Message::Request(Request::decode(array)?))},
+                    Some(RESPONSE_MESSAGE) => {Ok(Message::Response(Response::decode(array)?))},
+                    _ => {return Err(anyhow!("Decode error."));}
+                }
+            }
+            else{
+                return Err(anyhow!("Decode error."));
+            }
+        }
+        else{
+            return Err(anyhow!("Decode error."));
+        }
     }
 
     pub fn as_value(&self) -> Value {
@@ -81,13 +97,13 @@ impl Message {
 
 #[derive(PartialEq, Clone, Debug)]
 pub struct Request {
-    id: u32,
+    id: u64,
     command: Command
 }
 
 #[derive(PartialEq, Clone, Debug)]
 pub struct Response {
-    id: u32,
+    id: u64,
     notification: Notification
 }
 
@@ -102,4 +118,56 @@ pub enum Command {
 pub enum Notification {
     Success(Value),
     Failure(String)
+}
+
+impl Request {
+    fn decode(array: &[Value]) -> Result<Self> {
+        let id = if let Value::Integer(id) = array[1] {
+            id.as_u64().unwrap()
+        } else {
+            return Err(anyhow!("Decode error."));
+        };
+
+        let command = if let Value::Array(items) = &array[2] {
+            if let Value::Integer(cmd_type) = items[0] {
+                match cmd_type.as_u64() {
+                    Some(REQUEST_MESSAGE_SET) => {Command::Set(items[1].clone(), items[2].clone())},
+                    Some(REQUEST_MESSAGE_GET) => {Command::Get(items[1].clone())},
+                    Some(REQUEST_MESSAGE_SCAN) => {Command::Scan(items[1].clone(), items[2].clone())},
+                    _ => return Err(anyhow!("Decode error."))
+                }
+            }else {
+                return Err(anyhow!("Decode error."));
+            }
+        } else {
+            return Err(anyhow!("Decode error."));
+        };
+        Ok(Request{ id, command })
+    }
+}
+
+impl Response {
+    fn decode(array: &[Value]) -> Result<Self> {
+        let id = if let Value::Integer(id) = array[1] {
+            id.as_u64().unwrap()               
+        } else {
+            return Err(anyhow!("Decode error."));
+        };
+
+        let notification = if let Value::Array(items) = &array[2] {
+            if let Value::Integer(notf_type) = items[0] {
+                match notf_type.as_u64() {
+                    Some(RESPONSE_MESSAGE_SUCCESS) =>{Notification::Success(items[1].clone())},
+                    Some(RESPONSE_MESSAGE_FAILURE) =>{Notification::Failure(items[1].to_string())},
+                    _ => return Err(anyhow!("Decode error."))
+                }
+            }
+            else{
+                return Err(anyhow!("Decode error."));
+            }
+        }else {
+            return Err(anyhow!("Decode error."));
+        }; 
+        Ok(Response{id, notification})
+    }
 }
