@@ -1,4 +1,8 @@
 mod message;
+mod codec;
+mod protocol;
+mod error;
+
 #[cfg(test)]
 mod tests {
     #[test]

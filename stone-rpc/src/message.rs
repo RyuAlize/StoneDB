@@ -1,6 +1,6 @@
 use std::io::{self, Read};
 use rmpv::{decode::{self, value}, encode, Integer, Utf8String, Value};
-use anyhow::{anyhow, Result};
+use super::error::DecodeError;
 
 #[derive(PartialEq, Clone, Debug)]
 pub enum Message {
@@ -17,25 +17,25 @@ const RESPONSE_MESSAGE_SUCCESS:u64 = 5;
 const RESPONSE_MESSAGE_FAILURE:u64 = 6;
 
 impl Message {
-    pub fn decode<R: Read>(rd: &mut R) -> Result<Message> {
-        let msg = decode::value::read_value(rd)?;
+    pub fn decode<R: Read>(rd: &mut R) -> Result<Message,DecodeError> {
+        let msg = value::read_value(rd)?;
         if let Value::Array(ref array) = msg {
             if array.len() != 3 {
-                return Err(anyhow!("Decode error."));
+                return Err(DecodeError::Invalid);
             }
             if let Value::Integer(msg_type) = array[0] {
                 match msg_type.as_u64() {
                     Some(REQUEST_MESSAGE) => {Ok(Message::Request(Request::decode(array)?))},
                     Some(RESPONSE_MESSAGE) => {Ok(Message::Response(Response::decode(array)?))},
-                    _ => {return Err(anyhow!("Decode error."));}
+                    _ => {return Err(DecodeError::Invalid);}
                 }
             }
             else{
-                return Err(anyhow!("Decode error."));
+                return Err(DecodeError::Invalid);
             }
         }
         else{
-            return Err(anyhow!("Decode error."));
+            return Err(DecodeError::Invalid);
         }
     }
 
@@ -93,6 +93,12 @@ impl Message {
             }
         }
     }
+
+    pub fn pack(&self) -> io::Result<Vec<u8>> {
+        let mut bytes = vec![];
+        encode::write_value(&mut bytes, &self.as_value())?;
+        Ok(bytes)
+    }
 }
 
 #[derive(PartialEq, Clone, Debug)]
@@ -121,11 +127,11 @@ pub enum Notification {
 }
 
 impl Request {
-    fn decode(array: &[Value]) -> Result<Self> {
+    fn decode(array: &[Value]) -> Result<Self, DecodeError> {
         let id = if let Value::Integer(id) = array[1] {
             id.as_u64().unwrap()
         } else {
-            return Err(anyhow!("Decode error."));
+            return Err(DecodeError::Invalid);
         };
 
         let command = if let Value::Array(items) = &array[2] {
@@ -134,24 +140,24 @@ impl Request {
                     Some(REQUEST_MESSAGE_SET) => {Command::Set(items[1].clone(), items[2].clone())},
                     Some(REQUEST_MESSAGE_GET) => {Command::Get(items[1].clone())},
                     Some(REQUEST_MESSAGE_SCAN) => {Command::Scan(items[1].clone(), items[2].clone())},
-                    _ => return Err(anyhow!("Decode error."))
+                    _ => return Err(DecodeError::Invalid)
                 }
             }else {
-                return Err(anyhow!("Decode error."));
+                return Err(DecodeError::Invalid);
             }
         } else {
-            return Err(anyhow!("Decode error."));
+            return Err(DecodeError::Invalid);
         };
         Ok(Request{ id, command })
     }
 }
 
 impl Response {
-    fn decode(array: &[Value]) -> Result<Self> {
+    fn decode(array: &[Value]) -> Result<Self, DecodeError> {
         let id = if let Value::Integer(id) = array[1] {
             id.as_u64().unwrap()               
         } else {
-            return Err(anyhow!("Decode error."));
+            return Err(DecodeError::Invalid);
         };
 
         let notification = if let Value::Array(items) = &array[2] {
@@ -159,14 +165,14 @@ impl Response {
                 match notf_type.as_u64() {
                     Some(RESPONSE_MESSAGE_SUCCESS) =>{Notification::Success(items[1].clone())},
                     Some(RESPONSE_MESSAGE_FAILURE) =>{Notification::Failure(items[1].to_string())},
-                    _ => return Err(anyhow!("Decode error."))
+                    _ => return Err(DecodeError::Invalid)
                 }
             }
             else{
-                return Err(anyhow!("Decode error."));
+                return Err(DecodeError::Invalid);
             }
         }else {
-            return Err(anyhow!("Decode error."));
+            return Err(DecodeError::Invalid);
         }; 
         Ok(Response{id, notification})
     }
