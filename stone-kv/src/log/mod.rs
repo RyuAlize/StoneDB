@@ -1,4 +1,4 @@
-mod hybird;
+mod hybrid;
 
 use std::fmt::Display;
 use std::ops::{Bound, RangeBounds};

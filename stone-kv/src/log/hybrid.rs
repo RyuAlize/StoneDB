@@ -12,7 +12,7 @@ use super::*;
 use bytes::Bytes;
 
 
-pub struct Hybird<F>
+pub struct Hybrid<F>
 where
     F: Read + Write + Seek,
 {
@@ -24,7 +24,7 @@ where
     sync:bool
 }
 
-impl Hybird<File> {
+impl Hybrid<File> {
     pub fn open_from_dir_path(dir: &Path, sync: bool) -> Result<Self> {
         create_dir_all(dir)?;
         let file = OpenOptions::new()
@@ -61,7 +61,7 @@ impl Hybird<File> {
 
 }
 
-impl LogStore for Hybird<File> {
+impl LogStore for Hybrid<File> {
     fn append(&mut self, entry: Bytes) -> Result<u64> {
         self.uncommitted.push_back(entry);
         Ok(self.len())
@@ -202,11 +202,6 @@ impl LogStore for Hybird<File> {
         }
         Ok(())
     }
-
-    fn is_empty(&self) -> bool {
-        todo!()
-    }
-
 }
 
 struct MutexReader<'a>(MutexGuard<'a, File>);
