@@ -1,3 +1,5 @@
+extern crate core;
+
 mod skiplist;
 mod arena;
 mod comparator;
