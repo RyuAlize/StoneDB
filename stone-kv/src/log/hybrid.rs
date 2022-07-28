@@ -50,11 +50,37 @@ impl Hybrid<File> {
     }
 
     fn build_index(file: &File) -> Result<BTreeMap<u64, (u64, u32)>> {
-        todo!()
+        let filesize = file.metadata()?.len();
+        let mut bufreader = BufReader::new(file);
+        let mut index = BTreeMap::new();
+        let mut sizebuf = [0; 4];
+        let mut pos = 0;
+        let mut i = 1;
+        while pos < filesize {
+            bufreader.read_exact(&mut sizebuf)?;
+            pos += 4;
+            let size = u32::from_be_bytes(sizebuf);
+            index.insert(i, (pos, size));
+            let mut buf = vec![0; size as usize];
+            bufreader.read_exact(&mut buf)?;
+            pos += size as u64;
+            i += 1;
+        }
+        Ok(index)
     }
 
     fn load_metadata(file: &File) -> Result<HashMap<Vec<u8>, Vec<u8>>> {
-        todo!()
+        match bincode::deserialize_from(file) {
+            Ok(metadata) => Ok(metadata),
+            Err(err) => {
+                if let bincode::ErrorKind::Io(err) = &*err {
+                    if err.kind() == std::io::ErrorKind::UnexpectedEof {
+                        return Ok(HashMap::new());
+                    }
+                }
+                Err(err.into())
+            }
+        }
     }
 
 
