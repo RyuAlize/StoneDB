@@ -1,9 +1,9 @@
 mod hybrid;
 
-use std::fmt::Display;
-use std::ops::{Bound, RangeBounds};
 use anyhow::{anyhow, Context, Result};
 use bytes::Bytes;
+use std::fmt::Display;
+use std::ops::{Bound, RangeBounds};
 
 pub trait LogStore: Sync + Send {
     /// Appends a log entry, returning its index.
@@ -64,6 +64,5 @@ impl Range {
         }
     }
 }
-
 
 pub type Scan<'a> = Box<dyn Iterator<Item = Result<Bytes>> + 'a>;

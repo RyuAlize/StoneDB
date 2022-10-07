@@ -7,6 +7,7 @@
       <sourceFolder url="file://$MODULE_DIR$/stone-kv/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/stone-sql/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/stone-rpc/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/stone-raft/src" isTestSource="false" />
       <excludeFolder url="file://$MODULE_DIR$/target" />
     </content>
     <orderEntry type="inheritedJdk" />

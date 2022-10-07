@@ -1,9 +1,3 @@
+pub trait TInputProtocol {}
 
-
-pub trait TInputProtocol {
-
-}
-
-pub trait TOutputProtocol {
-    
-}
+pub trait TOutputProtocol {}

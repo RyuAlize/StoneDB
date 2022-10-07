@@ -1,11 +1,9 @@
 use rmpv::decode;
-use std::{error, fmt, io};
 use rmpv::decode::Error;
-
+use std::{error, fmt, io};
 
 #[derive(Debug)]
 pub enum DecodeError {
-
     Truncated,
 
     Invalid,
@@ -59,7 +57,7 @@ impl From<decode::Error> for DecodeError {
             decode::Error::InvalidMarkerRead(io_err) | decode::Error::InvalidDataRead(io_err) => {
                 From::from(io_err)
             }
-            _ => {DecodeError::Invalid}
+            _ => DecodeError::Invalid,
         }
     }
 }

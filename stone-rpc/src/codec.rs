@@ -1,9 +1,9 @@
-use bytes::BytesMut;
+use super::error::DecodeError;
 use super::message::Message;
+use bytes::BytesMut;
 use std::io;
 use tokio::io::{AsyncRead, AsyncWrite};
-use tokio_util::codec::{Encoder, Decoder, Framed};
-use super::error::DecodeError;
+use tokio_util::codec::{Decoder, Encoder, Framed};
 
 pub struct Codec;
 
@@ -19,7 +19,7 @@ impl Decoder for Codec {
                     Ok(message) => {
                         res = Ok(Some(message));
                         break;
-                    },
+                    }
                     Err(err) => match err {
                         DecodeError::Truncated => return Ok(None),
                         DecodeError::Invalid => continue,
@@ -27,7 +27,7 @@ impl Decoder for Codec {
                             res = Err(io_err);
                             break;
                         }
-                    }
+                    },
                 }
             }
             buf.position() as usize

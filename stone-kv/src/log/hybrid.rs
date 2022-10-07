@@ -11,17 +11,16 @@ use super::*;
 
 use bytes::Bytes;
 
-
 pub struct Hybrid<F>
 where
     F: Read + Write + Seek,
 {
-    file:Mutex<F>,
+    file: Mutex<F>,
     index: BTreeMap<u64, (u64, u32)>,
     uncommitted: VecDeque<Bytes>,
     metadata: HashMap<Vec<u8>, Vec<u8>>,
     metadata_file: F,
-    sync:bool
+    sync: bool,
 }
 
 impl Hybrid<File> {
@@ -82,9 +81,6 @@ impl Hybrid<File> {
             }
         }
     }
-
-
-
 }
 
 impl LogStore for Hybrid<File> {
@@ -98,7 +94,10 @@ impl LogStore for Hybrid<File> {
             return Err(anyhow!("Cannot commit non-existant index {}", index));
         }
         if index < self.index.len() as u64 {
-            return Err(anyhow!("Cannot commit non-existant index {}", self.index.len() as u64));
+            return Err(anyhow!(
+                "Cannot commit non-existant index {}",
+                self.index.len() as u64
+            ));
         }
         if index == self.index.len() as u64 {
             return Ok(());
@@ -114,10 +113,11 @@ impl LogStore for Hybrid<File> {
                     self.index.insert(i, (pos, entry.len() as u32));
                     bufwriter.write_all(entry.as_ref())?;
                     pos += entry.len() as u64;
-                },
-                None => { return Err(anyhow!("Unexpected end of uncommitted entries")); }
+                }
+                None => {
+                    return Err(anyhow!("Unexpected end of uncommitted entries"));
+                }
             }
-
         }
         bufwriter.flush()?;
         drop(bufwriter);
@@ -125,7 +125,6 @@ impl LogStore for Hybrid<File> {
             file.sync_data()?;
         }
         Ok(())
-
     }
 
     fn committed(&self) -> u64 {
@@ -136,14 +135,21 @@ impl LogStore for Hybrid<File> {
         match index {
             0 => Ok(None),
             i if i <= self.index.len() as u64 => {
-                let (pos, size) = self.index.get(&i).copied().context(format!("Indexed position not found for entry {}", i))?;
+                let (pos, size) = self
+                    .index
+                    .get(&i)
+                    .copied()
+                    .context(format!("Indexed position not found for entry {}", i))?;
                 let mut buf = vec![0; size as usize];
                 let mut file = self.file.lock().unwrap();
                 file.seek(SeekFrom::Start(pos))?;
                 file.read_exact(&mut buf)?;
                 Ok(Some(Bytes::from(buf)))
             }
-            i => Ok(self.uncommitted.get(i as usize - self.index.len() - 1).cloned()),
+            i => Ok(self
+                .uncommitted
+                .get(i as usize - self.index.len() - 1)
+                .cloned()),
         }
     }
 
@@ -175,14 +181,15 @@ impl LogStore for Hybrid<File> {
             let mut file = self.file.lock().unwrap();
             file.seek(SeekFrom::Start(*offset - 4)).unwrap(); // seek to length prefix
             let mut bufreader = BufReader::new(MutexReader(file)); // FIXME Avoid MutexReader
-            scan =
-                Box::new(scan.chain(self.index.range(start..=end).map(move |(_, (_, size))| {
+            scan = Box::new(scan.chain(self.index.range(start..=end).map(
+                move |(_, (_, size))| {
                     let mut sizebuf = vec![0; 4];
                     bufreader.read_exact(&mut sizebuf)?;
                     let mut buf = vec![0; *size as usize];
                     bufreader.read_exact(&mut buf)?;
                     Ok(Bytes::from(buf))
-                })));
+                },
+            )));
         }
 
         // Scan uncommitted entries in memory
@@ -202,13 +209,19 @@ impl LogStore for Hybrid<File> {
     }
 
     fn size(&self) -> u64 {
-        self.index.iter().next_back().map(|(_, (pos, size))| *pos + *size as u64).unwrap_or(0)
+        self.index
+            .iter()
+            .next_back()
+            .map(|(_, (pos, size))| *pos + *size as u64)
+            .unwrap_or(0)
     }
 
     fn truncate(&mut self, index: u64) -> Result<u64> {
         if index < self.index.len() as u64 {
-            return Err(anyhow!("Cannot truncate below committed index {}",
-                self.index.len() as u64));
+            return Err(anyhow!(
+                "Cannot truncate below committed index {}",
+                self.index.len() as u64
+            ));
         }
         self.uncommitted.truncate(index as usize - self.index.len());
         Ok(self.len())

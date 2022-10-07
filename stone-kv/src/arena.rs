@@ -6,7 +6,6 @@ use std::sync::{Arc, Mutex};
 use super::BLOCK_SIZE;
 
 pub trait Arena: Send + Sync {
-
     unsafe fn allocate<T>(&self, chunk: usize, align: usize) -> *mut T;
 
     fn memory_used(&self) -> usize;
@@ -23,7 +22,6 @@ pub struct BlockArena {
 impl BlockArena {
     fn allocate_fallback(&self, size: usize) -> *mut u8 {
         if size > BLOCK_SIZE / 4 {
-
             return self.allocate_new_block(size);
         }
 
@@ -64,7 +62,6 @@ impl Arena for BlockArena {
         };
         let needed = chunk + slop;
         let result = if needed <= self.bytes_remaining.load(Ordering::Acquire) {
-
             let p = self.ptr.load(Ordering::Acquire).add(slop);
             self.ptr.store(p.add(chunk), Ordering::Release);
             self.bytes_remaining.fetch_sub(needed, Ordering::SeqCst);
@@ -87,18 +84,16 @@ impl Arena for BlockArena {
     }
 }
 
-
 #[cfg(test)]
-mod test{
+mod test {
     use super::*;
-    
+
     #[test]
     fn test_new_arena() {
         let a = BlockArena::default();
         assert_eq!(a.memory_used(), 0);
         assert_eq!(a.bytes_remaining.load(Ordering::Acquire), 0);
         assert_eq!(a.ptr.load(Ordering::Acquire), ptr::null_mut());
-        
     }
 
     #[test]
@@ -109,7 +104,7 @@ mod test{
             a.allocate_new_block(*size);
             expect_size += *size;
             assert_eq!(a.memory_used(), expect_size, "memory used should match");
-            
+
             assert_eq!(
                 a.blocks.lock().unwrap().len(),
                 i + 1,

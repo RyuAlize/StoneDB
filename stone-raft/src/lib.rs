@@ -1,9 +1,3 @@
-mod codec;
-mod endpoint;
-mod error;
-mod message;
-mod protocol;
-
 #[cfg(test)]
 mod tests {
     #[test]

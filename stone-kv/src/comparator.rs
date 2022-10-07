@@ -1,8 +1,6 @@
 use std::cmp::{min, Ordering};
 
-
-pub trait Comparator: Send + Sync + Clone + Default{
-
+pub trait Comparator: Send + Sync + Clone + Default {
     fn compare(&self, a: &[u8], b: &[u8]) -> Ordering;
 
     fn name(&self) -> &str;
@@ -23,7 +21,6 @@ impl Comparator for BytewiseComparator {
     fn name(&self) -> &str {
         "BytewiseComparator"
     }
-
 
     #[inline]
     fn successor(&self, key: &[u8]) -> Vec<u8> {

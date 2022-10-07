@@ -157,7 +157,7 @@ impl Transaction {
     }
 
     /// Scans a key range.
-    pub fn scan(&self, range: impl RangeBounds<Bytes>) -> Result<super::Scan> {
+    pub fn scan(&self, range: impl RangeBounds<Vec<u8>>) -> Result<super::Scan> {
         let start = match range.start_bound() {
             Bound::Excluded(k) => Bound::Excluded(Key::Record(k.to_vec().into(), std::u64::MAX).encode()),
             Bound::Included(k) => Bound::Included(Key::Record(k.to_vec().into(), 0).encode()),
@@ -197,12 +197,12 @@ impl Transaction {
     }
 
     /// Sets a key.
-    pub fn set(&mut self, key: &Bytes, value: Bytes) -> Result<()> {
+    pub fn set(&mut self, key: &[u8], value: Vec<u8>) -> Result<()> {
         self.write(key, Some(value.to_vec()))
     }
 
     /// Writes a value for a key. None is used for deletion.
-    fn write(&self, key: &Bytes, value: Option<Vec<u8>>) -> Result<()> {
+    fn write(&self, key: &[u8], value: Option<Vec<u8>>) -> Result<()> {
         if !self.mode.mutable() {
             return Err(anyhow!("Read Only"));
         }
