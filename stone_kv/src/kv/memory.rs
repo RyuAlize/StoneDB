@@ -1,10 +1,10 @@
-use crate::skiplist::Node;
 use anyhow::{Ok, Result};
 
 use super::arena::*;
 use super::comparator::*;
-use super::skiplist::Skiplist;
+use super::skiplist::{Skiplist, Node};
 use super::{Bound, Range, Store};
+use super::Scan;
 
 #[derive(Clone)]
 pub struct Memory {
@@ -29,7 +29,7 @@ impl Store for Memory {
         };
     }
 
-    fn scan(&self, range: Range) -> crate::Scan {
+    fn scan(&self, range: Range) -> Scan {
         Box::new(Iter::new(self.skiplist.clone(), range))
     }
 

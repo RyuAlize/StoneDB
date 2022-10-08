@@ -1,5 +1,5 @@
 [package]
-name = "stone-rpc"
+name = "stone_rpc"
 version = "0.1.0"
 edition = "2021"
 

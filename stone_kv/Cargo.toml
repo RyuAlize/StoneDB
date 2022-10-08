@@ -1,5 +1,5 @@
 [package]
-name = "stone-kv"
+name = "stone_kv"
 version = "0.1.0"
 edition = "2021"
 
