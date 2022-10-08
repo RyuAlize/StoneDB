@@ -8,7 +8,6 @@ mod skiplist;
 mod log;
 
 use anyhow::Result;
-use bytes::Bytes;
 use std::{
     fmt::Display,
     ops::{Bound, RangeBounds},

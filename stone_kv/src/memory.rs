@@ -1,13 +1,10 @@
 use crate::skiplist::Node;
 use anyhow::{Ok, Result};
-use std::ptr;
-use std::sync::atomic::{AtomicPtr, Ordering};
-use std::sync::Arc;
 
 use super::arena::*;
 use super::comparator::*;
 use super::skiplist::Skiplist;
-use super::{Bound, Range, RangeBounds, Store};
+use super::{Bound, Range, Store};
 
 #[derive(Clone)]
 pub struct Memory {
