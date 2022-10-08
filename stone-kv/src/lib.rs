@@ -87,7 +87,7 @@ impl RangeBounds<Vec<u8>> for Range {
     }
 }
 
-pub type Scan = Box<dyn Iterator<Item = Result<(Vec<u8>, Vec<u8>)>> + Send>;
+pub type Scan = Box<dyn DoubleEndedIterator<Item = Result<(Vec<u8>, Vec<u8>)>>>;
 
 #[cfg(test)]
 mod tests {
