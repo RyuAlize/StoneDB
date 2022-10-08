@@ -4,7 +4,7 @@ mod arena;
 mod comparator;
 mod memory;
 mod skiplist;
-//mod mvcc;
+mod mvcc;
 
 
 use anyhow::Result;

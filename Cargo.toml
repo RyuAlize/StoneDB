@@ -9,7 +9,6 @@ edition = "2021"
 members =[
     "stone_kv",
     "stone_sql",
-    "stone_rpc",
     "stone_raft"
 ]
 

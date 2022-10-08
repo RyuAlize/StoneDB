@@ -1,8 +1,5 @@
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn it_works() {
-        let result = 2 + 2;
-        assert_eq!(result, 4);
-    }
-}
+pub(crate) mod log;
+pub(crate) mod raft_handle;
+pub(crate) mod role;
+pub(crate) mod rpc;
+pub(crate) mod state;
